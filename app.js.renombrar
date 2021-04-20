@@ -1,0 +1,97 @@
+let Imap = require('imap')
+let fs = require('fs')
+ 
+let imap = null
+
+let config = {
+    CORREO_CUENTA: 'panchusmagnus@gmail.com',
+    CORREO_CONTRASENA: 'Pancho2018',
+    CORREO_HOST: 'imap.gmail.com',
+    CORREO_PUERTO: 993,
+    CORREO_USA_TLS: true
+}
+
+function __start() {
+      imap = new Imap({
+      user: config.CORREO_CUENTA,
+      password: config.CORREO_CONTRASENA,
+      host: config.CORREO_HOST,
+      port: config.CORREO_PUERTO,
+      tls: config.CORREO_USA_TLS
+    });
+
+    imap.once('ready', function() {
+      
+       openInbox(function(err, box) {
+           if (err) throw err;
+           
+      imap.search(['UNSEEN', ['FROM', 'gonzalo.vinas@gmail.com']],  function(err, results) {
+        if (err) throw err;
+        if(results.length <= 0) {  console.log('no hay mail'); imap.end(); process.exit(0); }
+        var f = imap.fetch(results, { bodies: ''/*, markSeen: true*/});
+         
+         f.on('message', function(msg, seqno) {
+           
+          console.log('Message #%d', seqno);
+          var ___str;
+          var prefix = '(#' + seqno + ') ';
+          msg.on('body', function(stream, info) {
+            console.log(prefix + 'Body');
+            streamToString(stream, function(str) {
+               //verificar si es correo para procar 
+               //si es ... procesar y luego marcar como leido o (borrar?)
+              //  imap.addFlags(results, ['\\Seen'], true);
+            });
+    
+          });
+          msg.once('attributes', function(attrs) {
+           // console.log(prefix + 'Attributes: %s', inspect(attrs, false, 8));
+          });
+          msg.once('end', function() {
+           
+          });
+        });
+        f.once('error', function(err) {
+          console.log('Fetch error: ' + err);
+         //exit(-999);
+            
+        });
+        f.once('end', function() {
+         
+          imap.end();
+          
+        });
+      });
+      });
+    });
+     
+     
+    imap.once('error', function(err) {
+      console.log(err);
+    });
+     
+    imap.once('end', function() {
+      console.log('Connection ended');
+     //exit(0);
+    });
+
+    imap.connect();
+}
+    
+    
+function openInbox(cb) {
+  imap.openBox('INBOX', false, cb);
+}
+
+function streamToString(stream, cb) {
+  const chunks = [];
+  stream.on('data',function(chunk){
+    chunks.push(chunk);
+  });
+  stream.on('end', function() {
+    cb(chunks.join(''));
+  });
+}
+
+
+__start()
